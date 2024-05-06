@@ -14,13 +14,17 @@ const pool = new Pool({
     port: 5432
 });
 
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
+
 // Rota para buscar todos os herois
 app.get('/herois', async (req, res) => {
     try {
-        const {results} = await pool.query('SELECT * FROM herois');
+        const result = await pool.query('SELECT * FROM herois');
         res.json({
-            Total: results.rowCount,
-             herois: results.rows});
+            total: result.rowCount,
+             herois: result.rows});
 
     } catch (error) {
         console.error('Erro ao buscar herois', error);
@@ -33,11 +37,11 @@ app.get('/herois/:id', async (req, res) => {
     const {id} = req.params;
 
     try {
-        const {results} = await pool.query('SELECT * FROM herois WHERE id = $1', [id]);
-        if (results.rowCount === 0) {
+        const result = await pool.query('SELECT * FROM herois WHERE id = $1', [id]);
+        if (result.rowCount === 0) {
             return res.status(404).json({message: 'Heroi não encontrado'});
         }
-        res.json(results.rows[0]);
+        res.json(result.rows[0]);
 
     } catch (error) {
         console.error('Erro ao buscar heroi', error);
@@ -65,8 +69,8 @@ app.put('/herois/:id', async (req, res) => {
     const {nome, classe, nivel, vida} = req.body;
 
     try {
-        const {results} = await pool.query('UPDATE herois SET nome = $1, classe = $2, nivel = $3, vida = $4 WHERE id = $5', [nome, classe, nivel, vida, id]);
-        if (results.rowCount === 0) {
+        const result = await pool.query('UPDATE herois SET nome = $1, classe = $2, nivel = $3, vida = $4 WHERE id = $5', [nome, classe, nivel, vida, id]);
+        if (result.rowCount === 0) {
             return res.status(404).json({message: 'Heroi não encontrado'});
         }
         res.json({message: 'Heroi atualizado com sucesso'});
@@ -82,8 +86,8 @@ app.delete('/herois/:id', async (req, res) => {
     const {id} = req.params;
 
     try {
-        const {results} = await pool.query('DELETE FROM herois WHERE id = $1', [id]);
-        if (results.rowCount === 0) {
+        const result = await pool.query('DELETE FROM herois WHERE id = $1', [id]);
+        if (result.rowCount === 0) {
             return res.status(404).json({message: 'Heroi não encontrado'});
         }
         res.json({message: 'Heroi deletado com sucesso'});
@@ -95,11 +99,11 @@ app.delete('/herois/:id', async (req, res) => {
 });
 
 // Rota para simular batalhas entre os herois
-app.post('/batalha', async (req, res) => {
+app.post('/batalhas', async (req, res) => {
     const { heroi1_id, heroi2_id } = req.body;
 
     try {
-        const { rows: herois } = await pool.query('SELECT * FROM herois WHERE id IN ($1, $2)', [heroi1_id, heroi2_id]);
+        const { result: herois } = await pool.query('SELECT * FROM herois WHERE id IN ($1, $2)', [heroi1_id, heroi2_id]);
 
         if (herois.length < 2) {
             return res.status(404).json({ message: 'Um ou ambos os herois não foram encontrados' });

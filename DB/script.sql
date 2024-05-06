@@ -1,6 +1,6 @@
 CREATE DATABASE herois;
 
-CREATE TABLE heroi (
+CREATE TABLE herois (
     id INT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     classe VARCHAR(100) NOT NULL,
