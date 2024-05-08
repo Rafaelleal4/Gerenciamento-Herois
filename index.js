@@ -49,6 +49,23 @@ app.get('/herois/:id', async (req, res) => {
     }
 });
 
+// Rota para buscar um heroi pelo nome
+app.get('/herois/nome/:nome', async (req, res) => {
+    const {nome} = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM herois WHERE nome ILIKE $1', [`%${nome}%`]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({message: 'Herói não encontrado'});
+        }
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error('Erro ao buscar herói', error);
+        res.status(500).json({message: 'Erro ao buscar herói'});
+    }
+});
+
 // Rota para criar um heroi
 app.post('/herois', async (req, res) => {
     const {nome, classe, nivel, vida } = req.body;
@@ -98,34 +115,77 @@ app.delete('/herois/:id', async (req, res) => {
     }
 });
 
-// Rota para simular batalhas entre os herois
-app.post('/batalhas', async (req, res) => {
-    const { heroi1_id, heroi2_id } = req.body;
+// Rota para simular batalhas entre os heróis
+app.post('/batalha', async (req, res) => {
+    const { id_heroi1, id_heroi2 } = req.body;
 
     try {
-        const { result: herois } = await pool.query('SELECT * FROM herois WHERE id IN ($1, $2)', [heroi1_id, heroi2_id]);
+        // Consultar informações dos heróis no banco de dados
+        const resultHeroi1 = await pool.query('SELECT * FROM herois WHERE id = $1', [id_heroi1]);
+        const resultHeroi2 = await pool.query('SELECT * FROM herois WHERE id = $1', [id_heroi2]);
 
-        if (herois.length < 2) {
-            return res.status(404).json({ message: 'Um ou ambos os herois não foram encontrados' });
+        // Verificar se os heróis existem
+        if (resultHeroi1.rowCount === 0 || resultHeroi2.rowCount === 0) {
+            return res.status(404).json({ message: 'Heroi não encontrado' });
         }
 
-        let heroi1 = herois.find(heroi => heroi.id === heroi1_id);
-        let heroi2 = herois.find(heroi => heroi.id === heroi2_id);
+        const heroi1 = resultHeroi1.rows[0];
+        const heroi2 = resultHeroi2.rows[0];
 
-        // Simulação de batalha baseada no dano causado pelos herois
-        while (heroi1.hp > 0 && heroi2.hp > 0) {
-            heroi2.hp -= heroi1.nivel;
-            heroi1.hp -= heroi2.nivel;
+        // Calcular o dano causado por cada herói (com base no seu nível)
+        const danoHeroi1 = heroi1.nivel;
+        const danoHeroi2 = heroi2.nivel;
+
+        // Determinar o vencedor com base no dano causado
+        let resultadoBatalha;
+        let vencedor_id;
+        if (danoHeroi1 > danoHeroi2) {
+            resultadoBatalha = `${heroi1.nome} venceu a batalha contra ${heroi2.nome}`;
+            vencedor_id = heroi1.id;
+        } else if (danoHeroi1 < danoHeroi2) {
+            resultadoBatalha = `${heroi2.nome} venceu a batalha contra ${heroi1.nome}`;
+            vencedor_id = heroi2.id;
+        } else {
+            resultadoBatalha = 'A batalha terminou em empate';
+            vencedor_id = null; // ou algum valor que represente empate
         }
 
-        let vencedor_id = heroi1.hp > 0 ? heroi1.id : heroi2.id;
+        // Registrar o resultado da batalha no banco de dados
+        await pool.query('INSERT INTO batalhas (heroi1_id, heroi2_id, vencedor_id, resultado) VALUES ($1, $2, $3, $4)', [id_heroi1, id_heroi2, vencedor_id, resultadoBatalha]);
 
-        await pool.query('INSERT INTO batalhas (heroi1_id, heroi2_id, vencedor_id) VALUES ($1, $2, $3)', [heroi1_id, heroi2_id, vencedor_id]);
-
-        res.json({ message: 'Batalha concluída', vencedor_id });
-
+        res.status(200).json({ message: 'Batalha simulada com sucesso', resultado: resultadoBatalha });
     } catch (error) {
         console.error('Erro ao simular batalha', error);
         res.status(500).json({ message: 'Erro ao simular batalha' });
     }
 });
+
+// Rota para obter o histórico de batalhas com base nos herois
+app.get('/historico-batalhas/:heroiId', async (req, res) => {
+    try {
+        const heroiId = parseInt(req.params.heroiId, 10);
+        const result = await pool.query('SELECT * FROM batalhas WHERE heroi1_id = $1 OR heroi2_id = $1', [heroiId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Erro ao buscar histórico de batalhas', error);
+        res.status(500).json({message: 'Erro ao buscar histórico de batalhas'});
+    }
+});
+
+// Rota para buscar batalhas pelo nome do herói
+app.get('/batalhas/nome/:nome', async (req, res) => {
+    const {nome} = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM batalhas WHERE heroi1_id IN (SELECT id FROM herois WHERE nome ILIKE $1) OR heroi2_id IN (SELECT id FROM herois WHERE nome ILIKE $1)', [`%${nome}%`]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({message: 'Batalhas não encontradas'});
+        }
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error('Erro ao buscar batalhas', error);
+        res.status(500).json({message: 'Erro ao buscar batalhas'});
+    }
+});
+

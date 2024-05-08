@@ -9,11 +9,9 @@ CREATE TABLE herois (
 );
 
 CREATE TABLE batalhas (
-    id INT PRIMARY KEY,
-    heroi_id1 INT NOT NULL,
-    heroi_id2 INT NOT NULL,
-    vencedor_id INT NOT NULL,
-    FOREIGN KEY (heroi_id1) REFERENCES heroi(id),
-    FOREIGN KEY (heroi_id2) REFERENCES heroi(id),
-    FOREIGN KEY (vencedor_id) REFERENCES heroi(id)
+    id SERIAL PRIMARY KEY,
+    heroi1_id INTEGER REFERENCES herois(id),
+    heroi2_id INTEGER REFERENCES herois(id),
+    vencedor_id INTEGER REFERENCES herois(id),
+    resultado TEXT
 );
