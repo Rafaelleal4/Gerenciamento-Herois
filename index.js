@@ -66,12 +66,16 @@ app.get('/herois/nome/:nome', async (req, res) => {
     }
 });
 
-// Rota para criar um heroi
+/// Rota para criar um heroi
 app.post('/herois', async (req, res) => {
     const {nome, classe, nivel, vida } = req.body;
 
     try {
-        await pool.query('INSERT INTO herois (nome, classe, nivel, vida ) VALUES ($1, $2, $3, $4)', [nome, classe, nivel, vida]);
+        // Gere um id para o novo herói
+        const resultId = await pool.query('SELECT MAX(id) + 1 AS id FROM herois');
+        const id = resultId.rows[0].id || 1;
+
+        await pool.query('INSERT INTO herois (id, nome, classe, nivel, vida ) VALUES ($1, $2, $3, $4, $5)', [id, nome, classe, nivel, vida]);
         res.status(201).json({message: 'Heroi criado com sucesso'});
 
     } catch (error) {
@@ -132,26 +136,26 @@ app.post('/batalha', async (req, res) => {
         const heroi1 = resultHeroi1.rows[0];
         const heroi2 = resultHeroi2.rows[0];
 
-        // Calcular o dano causado por cada herói (com base no seu nível)
+        // Calcular o dano causado 
         const danoHeroi1 = heroi1.nivel;
         const danoHeroi2 = heroi2.nivel;
 
-        // Determinar o vencedor com base no dano causado
+        // Determinar o vencedor com base no dano 
         let resultadoBatalha;
-        let vencedor_id;
+        let vencedor_nome;
         if (danoHeroi1 > danoHeroi2) {
             resultadoBatalha = `${heroi1.nome} venceu a batalha contra ${heroi2.nome}`;
-            vencedor_id = heroi1.id;
+            vencedor_nome = heroi1.nome;
         } else if (danoHeroi1 < danoHeroi2) {
             resultadoBatalha = `${heroi2.nome} venceu a batalha contra ${heroi1.nome}`;
-            vencedor_id = heroi2.id;
+            vencedor_nome = heroi2.nome;
         } else {
             resultadoBatalha = 'A batalha terminou em empate';
-            vencedor_id = null; // ou algum valor que represente empate
+            vencedor_nome = null; 
         }
 
         // Registrar o resultado da batalha no banco de dados
-        await pool.query('INSERT INTO batalhas (heroi1_id, heroi2_id, vencedor_id, resultado) VALUES ($1, $2, $3, $4)', [id_heroi1, id_heroi2, vencedor_id, resultadoBatalha]);
+        await pool.query('INSERT INTO batalhas (heroi1_nome, heroi2_nome, vencedor_nome, resultado) VALUES ($1, $2, $3, $4)', [heroi1.nome, heroi2.nome, vencedor_nome, resultadoBatalha]);
 
         res.status(200).json({ message: 'Batalha simulada com sucesso', resultado: resultadoBatalha });
     } catch (error) {
@@ -160,7 +164,7 @@ app.post('/batalha', async (req, res) => {
     }
 });
 
-// Rota para obter o histórico de batalhas com base nos herois
+// Rota para obter o histórico de batalhas com base no ID dos herois
 app.get('/historico-batalhas/:heroiId', async (req, res) => {
     try {
         const heroiId = parseInt(req.params.heroiId, 10);
